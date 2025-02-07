@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"pokedexcli/internal/pokecache"
+	"time"
 )
 
 type Config struct {
@@ -21,11 +23,19 @@ type APIResponse struct {
 	Previous *string `json:"previous"`
 }
 
-func fetchLocations(url string) (*APIResponse, error) {
-	if url == "" {
-		url = baseURL
-	}
+var cache = pokecache.NewCache(10 * time.Second)
 
+func fetchLocations(url string) (*APIResponse, error) {
+	if data, found := cache.Get(url); found {
+		fmt.Println("Cache hit!")
+		var cachedResponse APIResponse
+
+		if err := json.Unmarshal(data, &cachedResponse); err != nil {
+			return nil, err
+		}
+		return &cachedResponse, nil
+	}
+	fmt.Println("Cache miss! Fetching from API")
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -35,6 +45,11 @@ func fetchLocations(url string) (*APIResponse, error) {
 	var data APIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err == nil {
+		cache.Add(url, jsonData)
 	}
 
 	return &data, nil
