@@ -1,16 +1,16 @@
 package main
 
 import (
-	"strings"
 	"bufio"
-	"os"
 	"fmt"
+	"os"
+	"strings"
 )
 
 type cliCommand struct {
-	name string
+	name        string
 	description string
-	callback func() error
+	callback    func(*Config) error
 }
 
 var commands map[string]cliCommand
@@ -18,25 +18,35 @@ var commands map[string]cliCommand
 func init() {
 	commands = map[string]cliCommand{
 		"help": {
-			name: "help",
+			name:        "help",
 			description: "Displays a help message",
-			callback: commandHelp,
+			callback:    commandHelp,
 		},
 		"exit": {
-			name: "exit",
+			name:        "exit",
 			description: "Exit the Pokedex",
-			callback: commandExit,
+			callback:    commandExit,
+		},
+		"map": {
+			name:        "map",
+			description: "Display the next 20 Pokémon locations",
+			callback:    mapCommand,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Display the previous 20 Pokémon locations",
+			callback:    mapBackCommand,
 		},
 	}
 }
 
-func commandExit() error {
+func commandExit(_ *Config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(_ *Config) error {
 	fmt.Println("Welcome to the Pokedex!\nUsage:")
 	for _, cmd := range commands {
 		fmt.Printf("%s: %s\n", cmd.name, cmd.description)
@@ -49,15 +59,15 @@ func cleanInput(text string) []string {
 	return words
 }
 
-// REPL 
+// REPL
 func startRepl() {
-	scanner := bufio.NewScanner(os.Stdin)
+	config := &Config{}
 
+	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("Pokedex > ")
 		scanner.Scan()
 		input := cleanInput(scanner.Text())
-		
 
 		if len(input) == 0 {
 			continue
@@ -65,7 +75,7 @@ func startRepl() {
 
 		commandName := input[0]
 		if cmd, exists := commands[commandName]; exists {
-			err := cmd.callback()
+			err := cmd.callback(config) // Pass config
 			if err != nil {
 				fmt.Println("Error:", err)
 			}
@@ -74,9 +84,3 @@ func startRepl() {
 		}
 	}
 }
-
-
-
-
-
-	
