@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Next     *string
 	Previous *string
+	Cache    *pokecache.Cache
 }
 
 const baseURL = "https://pokeapi.co/api/v2/location-area/"

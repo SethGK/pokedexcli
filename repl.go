@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"pokedexcli/internal/pokecache"
 	"strings"
+	"time"
+
+	cmd "pokedexcli/commands"
 )
 
 type cliCommand struct {
@@ -37,6 +41,11 @@ func init() {
 			description: "Display the previous 20 Pokémon locations",
 			callback:    mapBackCommand,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Explore a location to find Pokémon",
+			callback:    commandExploreWrapper,
+		},
 	}
 }
 
@@ -54,6 +63,27 @@ func commandHelp(_ *Config) error {
 	return nil
 }
 
+func commandExplore(config *Config, area string) error {
+	fmt.Printf("Exploring %s...\n", area)
+
+	err := cmd.Explore(config.Cache, area)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+
+	return nil
+}
+
+func commandExploreWrapper(config *Config) error {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: explore <area_name>")
+		return nil
+	}
+	area := os.Args[1]
+	return commandExplore(config, area)
+}
+
 func cleanInput(text string) []string {
 	words := strings.Fields(strings.ToLower(strings.TrimSpace(text)))
 	return words
@@ -61,7 +91,9 @@ func cleanInput(text string) []string {
 
 // REPL
 func startRepl() {
-	config := &Config{}
+	config := &Config{
+		Cache: pokecache.NewCache(10 * time.Second),
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -74,8 +106,21 @@ func startRepl() {
 		}
 
 		commandName := input[0]
+		args := input[1:]
+
 		if cmd, exists := commands[commandName]; exists {
-			err := cmd.callback(config) // Pass config
+			if commandName == "explore" {
+				if len(args) == 0 {
+					fmt.Println("Usage: explore <area_name>")
+					continue
+				}
+				err := commandExplore(config, args[0])
+				if err != nil {
+					fmt.Println("Error:", err)
+				}
+				continue
+			}
+			err := cmd.callback(config)
 			if err != nil {
 				fmt.Println("Error:", err)
 			}
