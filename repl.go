@@ -60,6 +60,11 @@ func init() {
 				return commandInspectWrapper(config, []string{})
 			},
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Dispalys all caught Pokémon",
+			callback:    commandPokedex,
+		},
 	}
 }
 
@@ -158,6 +163,19 @@ func commandInspectWrapper(config *config.Config, args []string) error {
 	}
 	pokemonName := args[0]
 	return commandInspect(config, pokemonName)
+}
+
+func commandPokedex(config *config.Config) error {
+	if len(config.CaughtPokemon) == 0 {
+		fmt.Println("Your Pokedex is empty. Catch some Pokémon first!")
+		return nil
+	}
+
+	fmt.Println("Your Pokedex:")
+	for name := range config.CaughtPokemon {
+		fmt.Printf(" - %s\n", name)
+	}
+	return nil
 }
 
 func cleanInput(text string) []string {
