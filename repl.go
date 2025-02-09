@@ -46,6 +46,11 @@ func init() {
 			description: "Explore a location to find Pokémon",
 			callback:    commandExploreWrapper,
 		},
+		"catch": {
+			name:        "catch",
+			description: "Try to catch a Pokémon by name",
+			callback:    commandCatchWrapper,
+		},
 	}
 }
 
@@ -84,6 +89,29 @@ func commandExploreWrapper(config *Config) error {
 	return commandExplore(config, area)
 }
 
+func commandCatch(config *Config, pokemonName string) error {
+	if pokemonName == "" {
+		fmt.Println("Usage: catch <pokemon_name>")
+		return nil
+	}
+
+	err := cmd.Catch(config.Cache, pokemonName)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+	return nil
+}
+
+func commandCatchWrapper(config *Config) error {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: catcj <pokemon_name>")
+		return nil
+	}
+	pokemonName := os.Args[1]
+	return commandCatch(config, pokemonName)
+}
+
 func cleanInput(text string) []string {
 	words := strings.Fields(strings.ToLower(strings.TrimSpace(text)))
 	return words
@@ -115,6 +143,16 @@ func startRepl() {
 					continue
 				}
 				err := commandExplore(config, args[0])
+				if err != nil {
+					fmt.Println("Error:", err)
+				}
+				continue
+			} else if commandName == "catch" {
+				if len(args) == 0 {
+					fmt.Println("Usage: catch <pokemon_name>")
+					continue
+				}
+				err := commandCatch(config, args[0])
 				if err != nil {
 					fmt.Println("Error:", err)
 				}
