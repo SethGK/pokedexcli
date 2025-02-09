@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"pokedexcli/internal/config"
 	"pokedexcli/internal/pokecache"
 	"time"
 )
-
-type Config struct {
-	Next     *string
-	Previous *string
-	Cache    *pokecache.Cache
-}
 
 const baseURL = "https://pokeapi.co/api/v2/location-area/"
 
@@ -56,7 +51,7 @@ func fetchLocations(url string) (*APIResponse, error) {
 	return &data, nil
 }
 
-func mapCommand(config *Config) error {
+func mapCommand(config *config.Config) error { // Change to *config.Config
 	data, err := fetchLocations(getOrDefault(config.Next, baseURL))
 	if err != nil {
 		return fmt.Errorf("error fetching locations: %w", err)
@@ -71,7 +66,7 @@ func mapCommand(config *Config) error {
 	return nil
 }
 
-func mapBackCommand(config *Config) error {
+func mapBackCommand(config *config.Config) error { // Change to *config.Config
 	if config.Previous == nil {
 		fmt.Println("No previous page")
 		return nil

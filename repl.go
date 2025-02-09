@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"pokedexcli/internal/config"
+	"pokedexcli/internal/models"
 	"pokedexcli/internal/pokecache"
 	"strings"
 	"time"
@@ -14,7 +16,7 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*Config) error
+	callback    func(*config.Config) error
 }
 
 var commands map[string]cliCommand
@@ -34,12 +36,12 @@ func init() {
 		"map": {
 			name:        "map",
 			description: "Display the next 20 Pokémon locations",
-			callback:    mapCommand,
+			callback:    mapCommandWrapper,
 		},
 		"mapb": {
 			name:        "mapb",
 			description: "Display the previous 20 Pokémon locations",
-			callback:    mapBackCommand,
+			callback:    mapBackCommandWrapper,
 		},
 		"explore": {
 			name:        "explore",
@@ -51,16 +53,23 @@ func init() {
 			description: "Try to catch a Pokémon by name",
 			callback:    commandCatchWrapper,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "View details about a caught Pokémon",
+			callback: func(config *config.Config) error {
+				return commandInspectWrapper(config, []string{})
+			},
+		},
 	}
 }
 
-func commandExit(_ *Config) error {
+func commandExit(_ *config.Config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(_ *Config) error {
+func commandHelp(_ *config.Config) error {
 	fmt.Println("Welcome to the Pokedex!\nUsage:")
 	for _, cmd := range commands {
 		fmt.Printf("%s: %s\n", cmd.name, cmd.description)
@@ -68,7 +77,15 @@ func commandHelp(_ *Config) error {
 	return nil
 }
 
-func commandExplore(config *Config, area string) error {
+func mapCommandWrapper(config *config.Config) error {
+	return mapCommand(config)
+}
+
+func mapBackCommandWrapper(config *config.Config) error {
+	return mapBackCommand(config)
+}
+
+func commandExplore(config *config.Config, area string) error {
 	fmt.Printf("Exploring %s...\n", area)
 
 	err := cmd.Explore(config.Cache, area)
@@ -80,7 +97,7 @@ func commandExplore(config *Config, area string) error {
 	return nil
 }
 
-func commandExploreWrapper(config *Config) error {
+func commandExploreWrapper(config *config.Config) error {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: explore <area_name>")
 		return nil
@@ -89,13 +106,13 @@ func commandExploreWrapper(config *Config) error {
 	return commandExplore(config, area)
 }
 
-func commandCatch(config *Config, pokemonName string) error {
+func commandCatch(config *config.Config, pokemonName string) error {
 	if pokemonName == "" {
 		fmt.Println("Usage: catch <pokemon_name>")
 		return nil
 	}
 
-	err := cmd.Catch(config.Cache, pokemonName)
+	err := cmd.Catch(config, config.Cache, pokemonName)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return err
@@ -103,13 +120,44 @@ func commandCatch(config *Config, pokemonName string) error {
 	return nil
 }
 
-func commandCatchWrapper(config *Config) error {
+func commandCatchWrapper(config *config.Config) error {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: catcj <pokemon_name>")
 		return nil
 	}
 	pokemonName := os.Args[1]
 	return commandCatch(config, pokemonName)
+}
+
+func commandInspect(config *config.Config, pokemonName string) error {
+	pokemon, exists := config.CaughtPokemon[pokemonName]
+	if !exists {
+		fmt.Println("You have not caught that Pokémon.")
+		return nil
+	}
+
+	fmt.Printf("Name: %s\n", pokemon.Name)
+	fmt.Printf("Height: %d\n", pokemon.Height)
+	fmt.Printf("Weight: %d\n", pokemon.Weight)
+	fmt.Println("Stats:")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf("  -%s: %d\n", stat.Name, stat.Value)
+	}
+	fmt.Println("Types:")
+	for _, t := range pokemon.Types {
+		fmt.Printf("  - %s\n", t)
+	}
+
+	return nil
+}
+
+func commandInspectWrapper(config *config.Config, args []string) error {
+	if len(args) < 1 {
+		fmt.Println("Usage: inspect <pokemon_name>")
+		return nil
+	}
+	pokemonName := args[0]
+	return commandInspect(config, pokemonName)
 }
 
 func cleanInput(text string) []string {
@@ -119,8 +167,9 @@ func cleanInput(text string) []string {
 
 // REPL
 func startRepl() {
-	config := &Config{
-		Cache: pokecache.NewCache(10 * time.Second),
+	config := &config.Config{
+		Cache:         pokecache.NewCache(10 * time.Second),
+		CaughtPokemon: make(map[string]models.Pokemon),
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -153,6 +202,16 @@ func startRepl() {
 					continue
 				}
 				err := commandCatch(config, args[0])
+				if err != nil {
+					fmt.Println("Error:", err)
+				}
+				continue
+			} else if commandName == "inspect" {
+				if len(args) == 0 {
+					fmt.Println("Usage: inspect <pokemon_name>")
+					continue
+				}
+				err := commandInspectWrapper(config, args)
 				if err != nil {
 					fmt.Println("Error:", err)
 				}

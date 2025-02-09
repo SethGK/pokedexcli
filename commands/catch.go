@@ -6,6 +6,8 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"pokedexcli/internal/config"
+	"pokedexcli/internal/models"
 	"pokedexcli/internal/pokecache"
 	"time"
 )
@@ -15,11 +17,11 @@ type Pokemon struct {
 	BaseExperience int    `json:"base_experience"`
 }
 
-var Pokedex = make(map[string]Pokemon)
+var Pokedex = make(map[string]models.Pokemon)
 
 const pokemonAPIURL = "https://pokeapi.co/api/v2/pokemon"
 
-func Catch(cache *pokecache.Cache, pokemonName string) error {
+func Catch(config *config.Config, cache *pokecache.Cache, pokemonName string) error {
 	url := fmt.Sprintf("%s/%s", pokemonAPIURL, pokemonName)
 	resp, found := cache.Get(url)
 
@@ -33,7 +35,7 @@ func Catch(cache *pokecache.Cache, pokemonName string) error {
 		cache.Add(url, resp)
 	}
 
-	var pokemonData Pokemon
+	var pokemonData models.Pokemon
 	if err := json.Unmarshal(resp, &pokemonData); err != nil {
 		return fmt.Errorf("failed to unmarshal pokemon data: %w", err)
 	}
@@ -46,6 +48,8 @@ func Catch(cache *pokecache.Cache, pokemonName string) error {
 	if rand.Intn(100) < catchChance {
 		Pokedex[pokemonData.Name] = pokemonData
 		fmt.Printf("%s was caught!\n", pokemonData.Name)
+		config.CaughtPokemon[pokemonName] = pokemonData
+		return nil
 	} else {
 		fmt.Printf("%s escaped!\n", pokemonData.Name)
 	}
